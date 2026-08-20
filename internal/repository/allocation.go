@@ -43,21 +43,28 @@ func (inputAllocationRepository) Create(ctx context.Context, db domain.DBTX, a *
 	return id, nil
 }
 
-func (inputAllocationRepository) ReturnableQuantity(ctx context.Context, db domain.DBTX, batchID int64, _ *int64) (domain.Decimal, error) {
+// ReturnableQuantity returns how much of the batch can still be returned for a
+// given task: allocated quantity minus already-returned quantity, scoped to the
+// same batch AND the same task. Waste (损耗) is unrecoverable, so it never adds
+// to the balance — a wasted amount can never be brought back into stock.
+func (inputAllocationRepository) ReturnableQuantity(ctx context.Context, db domain.DBTX, batchID int64, taskID *int64) (domain.Decimal, error) {
+	// Placeholders appear in order: type (allocate), type (return),
+	// batch_id, then task_id only when filtering by a specific task.
+	taskCond := "task_id IS NULL"
+	args := []any{domain.AllocationTypeAllocate, domain.AllocationTypeReturn, batchID}
+	if taskID != nil {
+		taskCond = "task_id = ?"
+		args = append(args, *taskID)
+	}
 	q := `SELECT COALESCE(SUM(CASE
-	            WHEN type IN (?, ?) THEN quantity
+	            WHEN type = ? THEN quantity
 	            WHEN type = ? THEN -quantity
 	            ELSE 0
 	          END), 0)
 	      FROM input_allocations
-	      WHERE batch_id = ?`
+	      WHERE batch_id = ? AND ` + taskCond
 	var quantity domain.Decimal
-	if err := db.QueryRowContext(ctx, q,
-		domain.AllocationTypeAllocate,
-		domain.AllocationTypeWaste,
-		domain.AllocationTypeReturn,
-		batchID,
-	).Scan(&quantity); err != nil {
+	if err := db.QueryRowContext(ctx, q, args...).Scan(&quantity); err != nil {
 		return 0, err
 	}
 	return quantity, nil

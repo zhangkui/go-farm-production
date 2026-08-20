@@ -48,13 +48,6 @@ func (s *inputAllocationService) Allocate(ctx context.Context, u *domain.InputAl
 	if batch.Status == domain.BatchStatusVoid {
 		return 0, domain.Wrap(domain.CodeConflict, 409, "批次已失效，无法操作", nil)
 	}
-	var returnable domain.Decimal
-	if u.Type == domain.AllocationTypeReturn {
-		returnable, err = s.store.AllocRepo.ReturnableQuantity(ctx, s.store.DB(), u.BatchID, u.TaskID)
-		if err != nil {
-			return 0, err
-		}
-	}
 
 	var allocID int64
 	err = s.store.WithTx(ctx, func(ctx context.Context, tx domain.DBTX) error {
@@ -64,6 +57,18 @@ func (s *inputAllocationService) Allocate(ctx context.Context, u *domain.InputAl
 				return err
 			}
 		case domain.AllocationTypeReturn:
+			// Lock the batch row so concurrent returns serialize. The
+			// returnable check + stock write must run inside the same tx and
+			// against the locked row, otherwise two simultaneous returns could
+			// both read the same balance and both succeed, letting the batch's
+			// remaining quantity exceed the stored quantity.
+			if _, err := s.store.BatchRepo.GetByIDForUpdate(ctx, tx, u.BatchID); err != nil {
+				return err
+			}
+			returnable, err := s.store.AllocRepo.ReturnableQuantity(ctx, tx, u.BatchID, u.TaskID)
+			if err != nil {
+				return err
+			}
 			if qty > returnable {
 				return domain.ErrReturnExceedsUsed
 			}
