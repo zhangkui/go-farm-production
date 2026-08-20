@@ -55,11 +55,11 @@ func (auditLogRepository) List(ctx context.Context, db domain.DBTX, p domain.Pag
 	}
 	where := ""
 	if len(conds) > 0 {
-		joiner := " AND "
-		if f.MatchMode() == domain.AuditMatchAny {
-			joiner = " OR "
-		}
-		where = " WHERE " + strings.Join(conds, joiner)
+		// Every supplied criterion narrows the result set: combined audit
+		// searches must intersect (AND) so operators cannot see unrelated
+		// actors, actions or resources. A union here would widen the page
+		// and inflate the total with out-of-scope rows.
+		where = " WHERE " + strings.Join(conds, " AND ")
 	}
 	total, err := countRows(ctx, db, `SELECT COUNT(*) FROM audit_logs`+where, args...)
 	if err != nil {

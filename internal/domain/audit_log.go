@@ -31,15 +31,9 @@ type AuditEntry struct {
 	UserAgent    string
 }
 
-// AuditMatchMode controls how active audit-log criteria are combined.
-type AuditMatchMode int8
-
-const (
-	AuditMatchAll AuditMatchMode = iota + 1
-	AuditMatchAny
-)
-
 // AuditLogQuery is the validated business query used by the audit service.
+// The repository intersects every populated field (AND), so a multi-field
+// search narrows the result set rather than widening it.
 type AuditLogQuery struct {
 	UserID       *int64
 	Action       string
@@ -53,42 +47,13 @@ type AuditLogQuery struct {
 // reversed time windows before the repository is called.
 func (q AuditLogQuery) Validate() error {
 	if q.UserID != nil && *q.UserID <= 0 {
-		return Wrap(CodeValidation, 400, "????ID?????", nil)
+		return Wrap(CodeValidation, 400, "用户ID必须为正整数", nil)
 	}
 	if q.ResourceID != "" && q.ResourceType == "" {
-		return Wrap(CodeValidation, 400, "???ID???????????", nil)
+		return Wrap(CodeValidation, 400, "对象编号必须与业务对象同时指定", nil)
 	}
 	if q.FromTime != nil && q.ToTime != nil && q.FromTime.After(*q.ToTime) {
-		return Wrap(CodeValidation, 400, "????????????????", nil)
+		return Wrap(CodeValidation, 400, "起始时间不能晚于结束时间", nil)
 	}
 	return nil
-}
-
-// MatchMode describes whether the repository should intersect or union the
-// active criteria. Combined audit searches must preserve every requested
-// scope so operators cannot see unrelated actors or resources.
-func (q AuditLogQuery) MatchMode() AuditMatchMode {
-	active := 0
-	if q.UserID != nil {
-		active++
-	}
-	if q.Action != "" {
-		active++
-	}
-	if q.ResourceType != "" {
-		active++
-	}
-	if q.ResourceID != "" {
-		active++
-	}
-	if q.FromTime != nil {
-		active++
-	}
-	if q.ToTime != nil {
-		active++
-	}
-	if active > 1 {
-		return AuditMatchAny
-	}
-	return AuditMatchAll
 }

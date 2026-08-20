@@ -27,7 +27,7 @@ func (s *Server) listAuditLogs(w http.ResponseWriter, r *http.Request) {
 	if v := r.URL.Query().Get("user_id"); v != "" {
 		id, err := strconv.ParseInt(v, 10, 64)
 		if err != nil || id <= 0 {
-			writeError(w, domain.Wrap(domain.CodeValidation, 400, "????ID????", err))
+			writeError(w, domain.Wrap(domain.CodeValidation, 400, "用户ID必须为正整数", err))
 			return
 		}
 		f.UserID = &id
@@ -41,7 +41,7 @@ func (s *Server) listAuditLogs(w http.ResponseWriter, r *http.Request) {
 		}
 		parsed, err := time.Parse(time.RFC3339, raw)
 		if err != nil {
-			writeError(w, domain.Wrap(domain.CodeValidation, 400, "?????????RFC3339", err))
+			writeError(w, domain.Wrap(domain.CodeValidation, 400, "时间参数格式无效，需符合RFC3339", err))
 			return
 		}
 		*target = &parsed
