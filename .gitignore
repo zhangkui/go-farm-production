@@ -1,0 +1,28 @@
+# Binaries
+/server
+/bin/
+*.exe
+*.exe~
+
+# Go
+vendor/
+
+# Environment & local config
+.env
+*.local
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Frontend
+web/node_modules/
+web/dist/
+web/.vite/
+web/*.tsbuildinfo
+
+# Logs
+*.log
+logs/
