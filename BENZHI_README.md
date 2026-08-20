@@ -6,13 +6,13 @@
 
 - Go：`go1.26.1 windows/amd64`
 - MySQL：测试通过 `TEST_MYSQL_DSN` 连接可用的 MySQL 8 实例
-- 固定测试入口：`go test ./scripts/verify -count=1 -run '^TestBug001_BusinessRegression$'`
+- 固定测试入口：`go test -race ./scripts/verify -count=10 -run '^TestBug001_BusinessRegression$'`
 
 ## 本地验证
 
 ```bash
 export TEST_MYSQL_DSN='root:rootsecret@tcp(127.0.0.1:3307)/?parseTime=true&multiStatements=true&charset=utf8mb4'
-go test ./scripts/verify -count=1 -run '^TestBug001_BusinessRegression$'
+go test -race ./scripts/verify -count=10 -run '^TestBug001_BusinessRegression$'
 ```
 
 ## Docker 构建
