@@ -65,6 +65,13 @@ func (s *farmTaskService) Update(ctx context.Context, id int64, u *domain.FarmTa
 		return err
 	}
 	t.ID = id
+	if domain.TaskAccountingIdentityChanged(existing, u) {
+		u.PlantingPlanID = existing.PlantingPlanID
+		t.PlantingPlanID = existing.PlantingPlanID
+	}
+	if err := s.store.TaskRepo.ValidateAccountingIdentity(ctx, s.store.DB(), id, t); err != nil {
+		return err
+	}
 	if err := s.store.TaskRepo.Update(ctx, s.store.DB(), id, t); err != nil {
 		return err
 	}

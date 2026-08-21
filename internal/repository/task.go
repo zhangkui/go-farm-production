@@ -12,11 +12,28 @@ import (
 type FarmTaskRepository interface {
 	Create(ctx context.Context, db domain.DBTX, t *domain.FarmTask) (int64, error)
 	Update(ctx context.Context, db domain.DBTX, id int64, t *domain.FarmTask) error
+	ValidateAccountingIdentity(ctx context.Context, db domain.DBTX, id int64, t *domain.FarmTask) error
 	UpdateStatus(ctx context.Context, db domain.DBTX, id int64, status int8, completedDate *time.Time) error
 	GetByID(ctx context.Context, db domain.DBTX, id int64) (*domain.FarmTask, error)
 	List(ctx context.Context, db domain.DBTX, p domain.Pagination, filter TaskFilter) ([]*domain.FarmTask, int64, error)
 	Delete(ctx context.Context, db domain.DBTX, id int64) error
 	ListByPlan(ctx context.Context, db domain.DBTX, planID int64) ([]*domain.FarmTask, error)
+}
+
+func (farmTaskRepository) ValidateAccountingIdentity(ctx context.Context, db domain.DBTX, id int64, task *domain.FarmTask) error {
+	var planID int64
+	var taskType int8
+	var allocations int
+	err := db.QueryRowContext(ctx, `SELECT t.planting_plan_id,t.task_type,
+		(SELECT COUNT(*) FROM input_allocations a WHERE a.task_id=t.id AND a.type=?)
+		FROM farm_tasks t WHERE t.id=?`, domain.AllocationTypeAllocate, id).Scan(&planID, &taskType, &allocations)
+	if err != nil {
+		return err
+	}
+	if allocations > 0 && planID != task.PlantingPlanID {
+		return domain.Wrap(domain.CodeConflict, 409, "task accounting plan cannot change", nil)
+	}
+	return nil
 }
 
 // TaskFilter narrows a task listing query.

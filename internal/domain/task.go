@@ -42,3 +42,10 @@ type TaskTypeLabourRate struct {
 	TaskType int8
 	Rate     Decimal
 }
+
+func TaskAccountingIdentityChanged(existing *FarmTask, update *FarmTaskUpsert) bool {
+	if existing == nil || update == nil {
+		return false
+	}
+	return existing.PlantingPlanID != update.PlantingPlanID
+}
