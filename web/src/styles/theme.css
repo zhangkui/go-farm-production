@@ -1,0 +1,50 @@
+/* =============================================================================
+   Global theme overrides for Element Plus + base styles.
+   The farm-management brand uses a green palette derived from #2e7d32.
+   ============================================================================= */
+
+:root {
+  /* Brand primary scale (overriding Element Plus defaults). */
+  --el-color-primary: #2e7d32;
+  --el-color-primary-light-3: #5a9d5e;
+  --el-color-primary-light-5: #84ba87;
+  --el-color-primary-light-7: #aed7b0;
+  --el-color-primary-light-8: #c6e3c8;
+  --el-color-primary-light-9: #e6f3e7;
+  --el-color-primary-dark-2: #236626;
+
+  /* Softer surfaces than the default pure greys. */
+  --el-bg-color: #ffffff;
+  --el-bg-color-page: #f4f7f5;
+  --el-border-radius-base: 8px;
+  --el-box-shadow-light: 0 1px 4px rgba(27, 58, 43, 0.08);
+  --el-box-shadow: 0 4px 16px rgba(27, 58, 43, 0.12);
+}
+
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  color: #1f2d27;
+  background: var(--el-bg-color-page);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Slim, subtle scrollbars to match the clean look. */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #cdd9d2; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #a8b8ae; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Tighter card headers / softer shadows globally. */
+.el-card { border-radius: 10px; border: none; box-shadow: var(--el-box-shadow-light); }
+.el-card__header { font-weight: 600; color: #1f2d27; }
+
+/* Nicer primary buttons. */
+.el-button--primary { --el-button-bg-color: var(--el-color-primary); }
