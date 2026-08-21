@@ -133,14 +133,14 @@ func (s *harvestService) Update(ctx context.Context, id int64, u *domain.Harvest
 	return nil
 }
 
-// Approve marks a harvest as reviewed/approved.
+// Approve marks a harvest as reviewed/approved. Approval binds to the
+// individual harvest record, never to its planting plan: approving one harvest
+// must not flip the approved flag on any sibling harvest sharing the plan.
 func (s *harvestService) Approve(ctx context.Context, id int64) error {
-	existing, err := s.store.HarvestRepo.GetByID(ctx, s.store.DB(), id)
-	if err != nil {
+	if _, err := s.store.HarvestRepo.GetByID(ctx, s.store.DB(), id); err != nil {
 		return err
 	}
-	scope := domain.NewHarvestApprovalScope(existing)
-	if err := s.store.HarvestRepo.SetApprovedForPlan(ctx, s.store.DB(), scope.ApprovalPlanID(), true); err != nil {
+	if err := s.store.HarvestRepo.SetApproved(ctx, s.store.DB(), id, true); err != nil {
 		return err
 	}
 	audit(ctx, s.audit, "approve", "harvest", fmt.Sprintf("%d", id), nil)

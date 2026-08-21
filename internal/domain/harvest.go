@@ -45,18 +45,3 @@ type HarvestDetail struct {
 	Remark    string    `json:"remark" db:"remark"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
-
-// HarvestApprovalScope describes the business scope used while reviewing a
-// harvest and while deciding whether its produce may enter inventory.
-type HarvestApprovalScope struct {
-	HarvestID      int64
-	PlantingPlanID int64
-}
-
-func NewHarvestApprovalScope(h *Harvest) HarvestApprovalScope {
-	return HarvestApprovalScope{HarvestID: h.ID, PlantingPlanID: h.PlantingPlanID}
-}
-
-func (s HarvestApprovalScope) ApprovalPlanID() int64 { return s.PlantingPlanID }
-
-func (s HarvestApprovalScope) InventoryPlanID() int64 { return s.PlantingPlanID }

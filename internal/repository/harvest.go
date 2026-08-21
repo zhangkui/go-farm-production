@@ -12,8 +12,6 @@ type HarvestRepository interface {
 	Create(ctx context.Context, db domain.DBTX, h *domain.Harvest) (int64, error)
 	Update(ctx context.Context, db domain.DBTX, id int64, h *domain.Harvest) error
 	SetApproved(ctx context.Context, db domain.DBTX, id int64, approved bool) error
-	SetApprovedForPlan(ctx context.Context, db domain.DBTX, planID int64, approved bool) error
-	HasApprovedForPlan(ctx context.Context, db domain.DBTX, planID int64) (bool, error)
 	GetByID(ctx context.Context, db domain.DBTX, id int64) (*domain.Harvest, error)
 	List(ctx context.Context, db domain.DBTX, p domain.Pagination, filter HarvestFilter) ([]*domain.Harvest, int64, error)
 	Delete(ctx context.Context, db domain.DBTX, id int64) error
@@ -46,21 +44,6 @@ func (harvestRepository) Update(ctx context.Context, db domain.DBTX, id int64, h
 func (harvestRepository) SetApproved(ctx context.Context, db domain.DBTX, id int64, approved bool) error {
 	_, err := db.ExecContext(ctx, `UPDATE harvests SET approved=? WHERE id=?`, approved, id)
 	return err
-}
-
-func (harvestRepository) SetApprovedForPlan(ctx context.Context, db domain.DBTX, planID int64, approved bool) error {
-	_, err := db.ExecContext(ctx,
-		`UPDATE harvests SET approved=? WHERE planting_plan_id=?`,
-		approved, planID)
-	return err
-}
-
-func (harvestRepository) HasApprovedForPlan(ctx context.Context, db domain.DBTX, planID int64) (bool, error) {
-	var count int64
-	err := db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM harvests WHERE planting_plan_id=? AND approved=1`,
-		planID).Scan(&count)
-	return count > 0, err
 }
 
 func (harvestRepository) GetByID(ctx context.Context, db domain.DBTX, id int64) (*domain.Harvest, error) {

@@ -38,12 +38,10 @@ func (s *produceInventoryService) Create(ctx context.Context, u *domain.ProduceI
 	if err != nil {
 		return 0, err
 	}
-	scope := domain.NewHarvestApprovalScope(harvest)
-	approved, err := s.store.HarvestRepo.HasApprovedForPlan(ctx, s.store.DB(), scope.InventoryPlanID())
-	if err != nil {
-		return 0, err
-	}
-	if !approved {
+	// Approval is bound to the specific harvest record, not its planting plan:
+	// an unapproved harvest may not enter inventory even if a sibling harvest
+	// sharing the plan has been approved.
+	if !harvest.Approved {
 		return 0, domain.Wrap(domain.CodeConflict, 409, "采收记录尚未审核，无法入库", nil)
 	}
 	p := &domain.ProduceInventory{
