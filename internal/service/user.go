@@ -88,8 +88,8 @@ func (s *userService) UpdatePassword(ctx context.Context, id int64, oldPassword,
 	if err := s.store.UserRepo.UpdatePassword(ctx, s.store.DB(), id, hash); err != nil {
 		return err
 	}
-	// Retire the most recently issued session after a password change.
-	_ = s.store.TokenRepo.RevokeMostRecentForUser(ctx, s.store.DB(), id)
+	// A password change invalidates every prior session across all devices.
+	_ = s.store.TokenRepo.RevokeAllForUser(ctx, s.store.DB(), id)
 	audit(ctx, s.audit, "password_change", "user", fmt.Sprintf("%d", id), nil)
 	return nil
 }
@@ -105,7 +105,8 @@ func (s *userService) ResetPassword(ctx context.Context, id int64, newPassword s
 	if err := s.store.UserRepo.UpdatePassword(ctx, s.store.DB(), id, hash); err != nil {
 		return err
 	}
-	_ = s.store.TokenRepo.RevokeMostRecentForUser(ctx, s.store.DB(), id)
+	// A password reset invalidates every prior session across all devices.
+	_ = s.store.TokenRepo.RevokeAllForUser(ctx, s.store.DB(), id)
 	audit(ctx, s.audit, "password_reset", "user", fmt.Sprintf("%d", id), nil)
 	return nil
 }
@@ -118,7 +119,8 @@ func (s *userService) UpdateStatus(ctx context.Context, id int64, status int8) e
 		return err
 	}
 	if status == domain.StatusInactive {
-		_ = s.store.TokenRepo.RevokeMostRecentForUser(ctx, s.store.DB(), id)
+		// Disabling an account invalidates every active session across all devices.
+		_ = s.store.TokenRepo.RevokeAllForUser(ctx, s.store.DB(), id)
 	}
 	audit(ctx, s.audit, "status_change", "user", fmt.Sprintf("%d", id), map[string]any{"status": status})
 	return nil

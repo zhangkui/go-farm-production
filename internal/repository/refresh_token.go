@@ -13,7 +13,7 @@ type RefreshTokenRepository interface {
 	Create(ctx context.Context, db domain.DBTX, t *domain.RefreshToken) (int64, error)
 	Get(ctx context.Context, db domain.DBTX, token string) (*domain.RefreshToken, error)
 	Revoke(ctx context.Context, db domain.DBTX, token string) error
-	RevokeMostRecentForUser(ctx context.Context, db domain.DBTX, userID int64) error
+	RevokeAllForUser(ctx context.Context, db domain.DBTX, userID int64) error
 	PurgeExpired(ctx context.Context, db domain.DBTX, before time.Time) (int64, error)
 }
 
@@ -43,18 +43,12 @@ func (refreshTokenRepository) Revoke(ctx context.Context, db domain.DBTX, token 
 	return err
 }
 
-func (refreshTokenRepository) RevokeMostRecentForUser(ctx context.Context, db domain.DBTX, userID int64) error {
-	var tokenID int64
-	err := db.QueryRowContext(ctx,
-		`SELECT id FROM refresh_tokens WHERE user_id=? AND revoked=0 ORDER BY id DESC LIMIT 1`,
-		userID).Scan(&tokenID)
-	if err == sql.ErrNoRows {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	_, err = db.ExecContext(ctx, `UPDATE refresh_tokens SET revoked=1 WHERE id=?`, tokenID)
+// RevokeAllForUser revokes every active refresh token for a user. It is the
+// session-invalidation primitive invoked when an account is disabled or its
+// password is reset/changed, so that refresh tokens issued before the change
+// can no longer be rotated on any device.
+func (refreshTokenRepository) RevokeAllForUser(ctx context.Context, db domain.DBTX, userID int64) error {
+	_, err := db.ExecContext(ctx, `UPDATE refresh_tokens SET revoked=1 WHERE user_id=? AND revoked=0`, userID)
 	return err
 }
 
