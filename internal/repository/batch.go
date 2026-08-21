@@ -13,6 +13,8 @@ import (
 type InputBatchRepository interface {
 	Create(ctx context.Context, db domain.DBTX, b *domain.InputBatch) (int64, error)
 	Update(ctx context.Context, db domain.DBTX, id int64, u *domain.InputBatchUpsert) error
+	LedgerTotals(ctx context.Context, db domain.DBTX, id int64) (domain.Decimal, domain.Decimal, domain.Decimal, error)
+	UpdateQuantityGuarded(ctx context.Context, db domain.DBTX, id int64, u *domain.InputBatchUpsert, remaining domain.Decimal) error
 	GetByID(ctx context.Context, db domain.DBTX, id int64) (*domain.InputBatch, error)
 	GetByIDForUpdate(ctx context.Context, db domain.DBTX, id int64) (*domain.InputBatch, error)
 	List(ctx context.Context, db domain.DBTX, p domain.Pagination, materialID *int64, status *int8) ([]*domain.InputBatch, int64, error)
@@ -25,6 +27,23 @@ type InputBatchRepository interface {
 	// ListExpiring returns batches whose expiry_date is on/before onOrBefore and
 	// status is active (for expiry warnings).
 	ListExpiring(ctx context.Context, db domain.DBTX, onOrBefore string) ([]*domain.InputBatch, error)
+}
+
+func (inputBatchRepository) LedgerTotals(ctx context.Context, db domain.DBTX, id int64) (domain.Decimal, domain.Decimal, domain.Decimal, error) {
+	var allocated, returned, wasted domain.Decimal
+	err := db.QueryRowContext(ctx, `SELECT
+		COALESCE(SUM(CASE WHEN type=? THEN quantity ELSE 0 END),0),
+		COALESCE(SUM(CASE WHEN type=? THEN quantity ELSE 0 END),0),
+		COALESCE(SUM(CASE WHEN type=? THEN quantity ELSE 0 END),0)
+		FROM input_allocations WHERE batch_id=?`, domain.AllocationTypeAllocate,
+		domain.AllocationTypeReturn, domain.AllocationTypeWaste, id).Scan(&allocated, &returned, &wasted)
+	return allocated, returned, wasted, err
+}
+
+func (inputBatchRepository) UpdateQuantityGuarded(ctx context.Context, db domain.DBTX, id int64, u *domain.InputBatchUpsert, remaining domain.Decimal) error {
+	_, err := db.ExecContext(ctx, `UPDATE input_batches SET material_id=?,batch_no=?,quantity=?,remaining_qty=?,purchase_date=?,expiry_date=?,purchase_price=?,supplier=?,status=? WHERE id=?`,
+		u.MaterialID, u.BatchNo, u.Quantity, remaining, u.PurchaseDate, u.ExpiryDate, u.PurchasePrice, u.Supplier, u.Status, id)
+	return err
 }
 
 type inputBatchRepository struct{}

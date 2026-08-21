@@ -31,3 +31,12 @@ type InputBatchUpsert struct {
 	Supplier      string  `json:"supplier"`
 	Status        int8    `json:"status"`
 }
+
+// RecalculateBatchRemaining derives current stock from immutable ledger totals.
+func RecalculateBatchRemaining(quantity, allocated, returned, wasted Decimal) (Decimal, error) {
+	remaining := quantity - allocated + returned
+	if remaining < 0 {
+		return 0, Wrap(CodeConflict, 409, "batch quantity is below consumed stock", nil)
+	}
+	return remaining, nil
+}

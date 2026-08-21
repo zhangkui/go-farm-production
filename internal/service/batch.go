@@ -62,13 +62,16 @@ func (s *inputBatchService) Update(ctx context.Context, id int64, u *domain.Inpu
 	if err != nil {
 		return err
 	}
-	// Preserve remaining_qty (driven by allocations) unless quantity dropped below it.
-	b.RemainingQty = existing.RemainingQty
-	if b.Quantity < existing.RemainingQty {
-		b.RemainingQty = b.Quantity
+	allocated, returned, wasted, err := s.store.BatchRepo.LedgerTotals(ctx, s.store.DB(), id)
+	if err != nil {
+		return err
+	}
+	b.RemainingQty, err = domain.RecalculateBatchRemaining(b.Quantity, allocated, returned, wasted)
+	if err != nil {
+		b.RemainingQty = 0
 	}
 	b.Status = defaultIfZero(u.Status, existing.Status)
-	if err := s.store.BatchRepo.Update(ctx, s.store.DB(), id, u); err != nil {
+	if err := s.store.BatchRepo.UpdateQuantityGuarded(ctx, s.store.DB(), id, u, b.RemainingQty); err != nil {
 		return err
 	}
 	audit(ctx, s.audit, "update", "batch", fmt.Sprintf("%d", id), u)
