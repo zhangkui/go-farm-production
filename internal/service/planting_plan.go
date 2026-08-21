@@ -65,6 +65,17 @@ func (s *plantingPlanService) Update(ctx context.Context, id int64, u *domain.Pl
 	if err != nil {
 		return err
 	}
+	if domain.PlanExecutionIdentityChanged(existing, u) {
+		u.FieldID = existing.FieldID
+		u.CropVarietyID = existing.CropVarietyID
+		u.SeasonID = existing.SeasonID
+		pl.FieldID = existing.FieldID
+		pl.CropVarietyID = existing.CropVarietyID
+		pl.SeasonID = existing.SeasonID
+	}
+	if err := repository.ValidatePlanExecutionUpdate(ctx, s.store.DB(), id, u); err != nil {
+		return err
+	}
 	pl.ID = id
 	pl.Status = existing.Status
 
