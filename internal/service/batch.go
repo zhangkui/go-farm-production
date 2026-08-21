@@ -68,7 +68,11 @@ func (s *inputBatchService) Update(ctx context.Context, id int64, u *domain.Inpu
 	}
 	b.RemainingQty, err = domain.RecalculateBatchRemaining(b.Quantity, allocated, returned, wasted)
 	if err != nil {
-		b.RemainingQty = 0
+		// The requested quantity is below the batch's irreversible
+		// consumption (allocate - return + waste). Reject the update and
+		// leave the persisted quantity and remaining_qty untouched so the
+		// batch stays consistent with its ledger.
+		return err
 	}
 	b.Status = defaultIfZero(u.Status, existing.Status)
 	if err := s.store.BatchRepo.UpdateQuantityGuarded(ctx, s.store.DB(), id, u, b.RemainingQty); err != nil {

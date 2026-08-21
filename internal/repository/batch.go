@@ -40,7 +40,16 @@ func (inputBatchRepository) LedgerTotals(ctx context.Context, db domain.DBTX, id
 	return allocated, returned, wasted, err
 }
 
+// UpdateQuantityGuarded updates a batch's editable fields and the cached
+// remaining_qty. It is "guarded" against impossible inventory: a negative
+// remaining_qty is refused before any write, so the repository — whether
+// invoked through the service or directly — can never persist a stock that
+// has been driven below zero. This mirrors the DecreaseStock guard and keeps
+// the cached column consistent with the non-negativity invariant.
 func (inputBatchRepository) UpdateQuantityGuarded(ctx context.Context, db domain.DBTX, id int64, u *domain.InputBatchUpsert, remaining domain.Decimal) error {
+	if remaining < 0 {
+		return domain.ErrInsufficientStock
+	}
 	_, err := db.ExecContext(ctx, `UPDATE input_batches SET material_id=?,batch_no=?,quantity=?,remaining_qty=?,purchase_date=?,expiry_date=?,purchase_price=?,supplier=?,status=? WHERE id=?`,
 		u.MaterialID, u.BatchNo, u.Quantity, remaining, u.PurchaseDate, u.ExpiryDate, u.PurchasePrice, u.Supplier, u.Status, id)
 	return err

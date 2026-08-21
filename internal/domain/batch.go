@@ -32,11 +32,18 @@ type InputBatchUpsert struct {
 	Status        int8    `json:"status"`
 }
 
-// RecalculateBatchRemaining derives current stock from immutable ledger totals.
+// RecalculateBatchRemaining derives current stock from immutable ledger
+// totals. Allocations and waste both deduct stock irreversibly; returns add
+// stock back. The batch quantity therefore must be at least the irreversible
+// consumption (allocated - returned + wasted), otherwise the batch has been
+// over-consumed and its remaining stock would go negative.
+//
+// On conflict it returns a 409 AppError and a zero remaining; the caller must
+// surface the error and leave the persisted quantity/remaining unchanged.
 func RecalculateBatchRemaining(quantity, allocated, returned, wasted Decimal) (Decimal, error) {
-	remaining := quantity - allocated + returned
-	if remaining < 0 {
-		return 0, Wrap(CodeConflict, 409, "batch quantity is below consumed stock", nil)
+	irreversible := allocated.Sub(returned).Add(wasted)
+	if quantity < irreversible {
+		return 0, Wrap(CodeConflict, 409, "批次数量低于已发生的不可逆消耗（领用-退回+损耗），无法调整", nil)
 	}
-	return remaining, nil
+	return quantity.Sub(irreversible), nil
 }
