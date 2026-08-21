@@ -29,11 +29,11 @@ func NewSeasonService(store *repository.Store, a AuditService) SeasonService {
 }
 
 func (s *seasonService) Create(ctx context.Context, u *domain.SeasonUpsert) (int64, error) {
-	start, err := mustSeasonCreateTimeValue(u.StartDate, "开始日期", true)
+	start, err := mustSeasonCreateTimeValue(u.StartDate, "开始日期")
 	if err != nil {
 		return 0, err
 	}
-	end, err := mustSeasonCreateTimeValue(u.EndDate, "结束日期", false)
+	end, err := mustSeasonCreateTimeValue(u.EndDate, "结束日期")
 	if err != nil {
 		return 0, err
 	}

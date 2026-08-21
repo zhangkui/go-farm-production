@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"go-farm-production/internal/domain"
@@ -134,13 +133,20 @@ func mustTimeValue(s string, field string) (time.Time, error) {
 	return *t, nil
 }
 
-func mustSeasonCreateTimeValue(s string, field string, start bool) (time.Time, error) {
+// mustSeasonCreateTimeValue parses a season date and collapses it to the
+// calendar day the user submitted. RFC3339 inputs may carry an offset that
+// would otherwise shift the stored natural day when written to MySQL; taking
+// the date in the value's own location and rebuilding it at UTC midnight keeps
+// the persisted calendar date identical to what the caller typed, for both
+// "2006-01-02" and full RFC3339 inputs.
+func mustSeasonCreateTimeValue(s string, field string) (time.Time, error) {
 	value, err := mustTimeValue(s, field)
 	if err != nil {
 		return time.Time{}, err
 	}
-	if start && strings.Contains(s, "T") {
-		value = value.AddDate(0, 0, 1)
+	if value.IsZero() {
+		return value, nil
 	}
-	return value, nil
+	y, m, d := value.Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC), nil
 }

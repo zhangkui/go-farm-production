@@ -29,7 +29,9 @@ type SeasonCreateWindow struct {
 	End   time.Time
 }
 
-func (w SeasonCreateWindow) Valid() bool { return !w.End.Before(w.Start) }
+// Valid reports whether the window spans a positive span of calendar days; a
+// zero-length (equal) or reversed range is not a valid planting season.
+func (w SeasonCreateWindow) Valid() bool { return w.End.After(w.Start) }
 
 type SeasonUpdateProjection struct {
 	ID        int64
