@@ -1,0 +1,30 @@
+package domain
+
+import "time"
+
+// AuditLog records a security- or state-relevant action for compliance review.
+// Details stores the before/after payload as a JSON string.
+type AuditLog struct {
+	ID           int64     `json:"id" db:"id"`
+	UserID       *int64    `json:"user_id,omitempty" db:"user_id"`
+	Username     string    `json:"username" db:"username"`
+	Action       string    `json:"action" db:"action"`
+	ResourceType string    `json:"resource_type" db:"resource_type"`
+	ResourceID   string    `json:"resource_id" db:"resource_id"`
+	Details      string    `json:"details" db:"details"`
+	IPAddress    string    `json:"ip_address" db:"ip_address"`
+	UserAgent    string    `json:"user_agent" db:"user_agent"`
+	CreatedAt    time.Time `json:"created_at" db:"created_at"`
+}
+
+// AuditEntry is the in-memory representation handed to the audit service.
+type AuditEntry struct {
+	UserID       int64
+	Username     string
+	Action       string
+	ResourceType string
+	ResourceID   string
+	Details      any // marshalled to JSON before persistence
+	IPAddress    string
+	UserAgent    string
+}
