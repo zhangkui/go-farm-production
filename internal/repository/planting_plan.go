@@ -23,6 +23,7 @@ type PlantingPlanRepository interface {
 	FindCreateOverlap(ctx context.Context, db domain.DBTX, scope domain.PlanCreateOverlapScope, start, end time.Time) (*domain.PlanOverlapResult, error)
 	FindUpdateOverlap(ctx context.Context, db domain.DBTX, fieldID int64, scope domain.PlanUpdateOverlapScope, start, end time.Time) (*domain.PlanOverlapResult, error)
 	CountTaskReferences(ctx context.Context, db domain.DBTX, id int64) (int64, error)
+	CountActiveBySeason(ctx context.Context, db domain.DBTX, seasonID int64) (int64, error)
 	DetachTasksForDelete(ctx context.Context, db domain.DBTX, id int64) error
 }
 
@@ -180,6 +181,14 @@ func (r plantingPlanRepository) FindUpdateOverlap(ctx context.Context, db domain
 }
 func (plantingPlanRepository) CountTaskReferences(ctx context.Context, db domain.DBTX, id int64) (int64, error) {
 	return countRows(ctx, db, `SELECT COUNT(*) FROM farm_tasks WHERE planting_plan_id=?`, id)
+}
+
+// CountActiveBySeason reports how many plans in an effective production phase
+// (planned/planted/growing/harvested) still reference the given season. The
+// season service uses this to refuse deactivation while active plans depend on
+// it. Cancelled and completed plans do not count as occupying the season.
+func (plantingPlanRepository) CountActiveBySeason(ctx context.Context, db domain.DBTX, seasonID int64) (int64, error) {
+	return countRows(ctx, db, `SELECT COUNT(*) FROM planting_plans WHERE season_id=? AND status IN (1,2,3,4)`, seasonID)
 }
 func (plantingPlanRepository) DetachTasksForDelete(ctx context.Context, db domain.DBTX, id int64) error {
 	_, err := db.ExecContext(ctx, `DELETE FROM farm_tasks WHERE planting_plan_id=?`, id)

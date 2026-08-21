@@ -59,6 +59,19 @@ func (s *seasonService) Update(ctx context.Context, id int64, u *domain.SeasonUp
 	if _, err := s.store.SeasonRepo.GetByID(ctx, s.store.DB(), id); err != nil {
 		return err
 	}
+	// BUG-008: a season may only be deactivated when no plan in an effective
+	// production phase still references it. Refuse the request and keep the
+	// original status so an active plan never ends up under an unavailable
+	// season. Seasons not used by any active plan can be deactivated normally.
+	if u.Status == domain.StatusInactive {
+		active, err := s.store.PlanRepo.CountActiveBySeason(ctx, s.store.DB(), id)
+		if err != nil {
+			return err
+		}
+		if active > 0 {
+			return domain.Wrap(domain.CodeConflict, 409, "种植季仍被有效生产阶段的种植计划引用，无法停用", nil)
+		}
+	}
 	projection := domain.SeasonUpdateProjection{ID: id, Code: u.Code, Name: u.Name, StartDate: start, EndDate: end, Status: u.Status}
 	if err := s.store.SeasonRepo.UpdateProjected(ctx, s.store.DB(), projection); err != nil {
 		return err
