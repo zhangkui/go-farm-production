@@ -60,19 +60,33 @@ func (s *farmTaskService) Update(ctx context.Context, id int64, u *domain.FarmTa
 	if err := validateTask(u); err != nil {
 		return err
 	}
+	// A task's accounting identity — planting plan and task type — drives cost
+	// classification. Once a task has any input-material usage (allocate or
+	// waste), both are immutable: existing allocation records were booked
+	// against the original identity, and changing either would re-attribute
+	// historical input usage to the wrong plan and cost category. Refuse with a
+	// conflict instead of silently dropping the change.
+	if domain.TaskAccountingIdentityChanged(existing, u) {
+		used, err := s.store.TaskRepo.HasInputUsage(ctx, s.store.DB(), id)
+		if err != nil {
+			return err
+		}
+		if used {
+			return domain.Wrap(domain.CodeConflict, 409,
+				"任务已产生投入品领用或损耗记录，不可变更所属种植计划或任务类型", nil)
+		}
+	}
 	t, err := buildTask(u)
 	if err != nil {
 		return err
 	}
 	t.ID = id
-	if domain.TaskAccountingIdentityChanged(existing, u) {
-		u.PlantingPlanID = existing.PlantingPlanID
-		t.PlantingPlanID = existing.PlantingPlanID
-	}
-	if err := s.store.TaskRepo.ValidateAccountingIdentity(ctx, s.store.DB(), id, t); err != nil {
-		return err
-	}
-	if err := s.store.TaskRepo.Update(ctx, s.store.DB(), id, t); err != nil {
+	// Run validate + write in a single transaction to close the TOCTOU window
+	// between the accounting-identity check and the UPDATE. Update re-runs the
+	// guard so direct repository callers are protected too.
+	if err := s.store.WithTx(ctx, func(ctx context.Context, tx domain.DBTX) error {
+		return s.store.TaskRepo.Update(ctx, tx, id, t)
+	}); err != nil {
 		return err
 	}
 	audit(ctx, s.audit, "update", "farm_task", fmt.Sprintf("%d", id), u)

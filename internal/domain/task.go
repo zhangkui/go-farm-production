@@ -43,9 +43,16 @@ type TaskTypeLabourRate struct {
 	Rate     Decimal
 }
 
+// TaskAccountingIdentityChanged reports whether an update would alter a
+// task's accounting identity — the planting plan or the task type. Both drive
+// cost classification: the plan owns the cost bucket and the task type maps to
+// a labour/cost category. Once a task has any input-material usage (allocate or
+// waste), these fields are immutable because existing allocation records were
+// booked against the original identity. Changing either would silently
+// re-attribute historical input usage to the wrong plan and cost category.
 func TaskAccountingIdentityChanged(existing *FarmTask, update *FarmTaskUpsert) bool {
 	if existing == nil || update == nil {
 		return false
 	}
-	return existing.PlantingPlanID != update.PlantingPlanID
+	return existing.PlantingPlanID != update.PlantingPlanID || existing.TaskType != update.TaskType
 }
